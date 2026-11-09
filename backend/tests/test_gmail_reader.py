@@ -25,3 +25,21 @@ def test_extract_message_metadata():
     assert result["subject"] == "Test Subject"
     assert result["date"] == "Thu, 29 Oct 2026 10:00:00 +0000"
     assert result["snippet"] == "Test email snippet"
+def test_extract_message_metadata_with_missing_headers():
+    message = {
+        "id": "test-id",
+        "threadId": "test-thread",
+        "snippet": "Test snippet",
+        "payload": {
+            "headers": [
+                {"name": "From", "value": "sender@example.com"}
+            ]
+        },
+    }
+
+    result = extract_message_metadata(message)
+
+    assert result["sender"] == "sender@example.com"
+    assert result["subject"] is None
+    assert result["recipient"] is None
+    assert result["date"] is None
