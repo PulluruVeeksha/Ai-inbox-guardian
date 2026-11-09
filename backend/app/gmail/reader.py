@@ -1,3 +1,6 @@
+
+import base64
+
 from backend.app.gmail.client import create_gmail_service
 
 
@@ -30,6 +33,8 @@ def get_message(message_id: str):
         )
         .execute()
     )
+
+
 def extract_message_metadata(message: dict):
     headers = message.get("payload", {}).get("headers", [])
 
@@ -47,3 +52,38 @@ def extract_message_metadata(message: dict):
         "date": header_map.get("date"),
         "snippet": message.get("snippet"),
     }
+
+
+def extract_email_body(message: dict) -> str:
+    """Extract plain-text email content from Gmail message payload."""
+
+    def decode_part(part: dict) -> str:
+        body_data = part.get("body", {}).get("data")
+
+        if not body_data:
+            return ""
+
+        decoded_bytes = base64.urlsafe_b64decode(
+            body_data + "=" * (-len(body_data) % 4)
+        )
+
+        return decoded_bytes.decode("utf-8", errors="replace")
+
+    def find_plain_text(payload: dict) -> list:
+        mime_type = payload.get("mimeType", "")
+
+        if mime_type == "text/plain":
+            content = decode_part(payload)
+            return [content] if content else []
+
+        results = []
+
+        for part in payload.get("parts", []):
+            results.extend(find_plain_text(part))
+
+        return results
+
+    payload = message.get("payload", {})
+    text_parts = find_plain_text(payload)
+
+    return "\n".join(text_parts).strip()

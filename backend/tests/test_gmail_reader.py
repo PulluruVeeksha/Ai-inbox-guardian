@@ -43,3 +43,66 @@ def test_extract_message_metadata_with_missing_headers():
     assert result["subject"] is None
     assert result["recipient"] is None
     assert result["date"] is None
+    
+import base64
+
+from backend.app.gmail.reader import extract_email_body
+
+
+def test_extract_email_body():
+    email_text = "Hello! Please review the project update."
+
+    encoded_body = base64.urlsafe_b64encode(
+        email_text.encode("utf-8")
+    ).decode("utf-8").rstrip("=")
+
+    message = {
+        "payload": {
+            "mimeType": "text/plain",
+            "body": {
+                "data": encoded_body
+            }
+        }
+    }
+
+    result = extract_email_body(message)
+
+    assert result == email_text
+
+def test_extract_email_body_from_multipart():
+    plain_text = "This is the plain-text email body."
+
+    encoded_body = base64.urlsafe_b64encode(
+        plain_text.encode("utf-8")
+    ).decode("utf-8").rstrip("=")
+
+    message = {
+        "payload": {
+            "mimeType": "multipart/alternative",
+            "parts": [
+                {
+                    "mimeType": "text/html",
+                    "body": {"data": "PGI+SGVsbG88L2I+"}
+                },
+                {
+                    "mimeType": "text/plain",
+                    "body": {"data": encoded_body}
+                }
+            ]
+        }
+    }
+
+    result = extract_email_body(message)
+
+    assert result == plain_text
+def test_extract_email_body_when_empty():
+    message = {
+        "payload": {
+            "mimeType": "text/plain",
+            "body": {}
+        }
+    }
+
+    result = extract_email_body(message)
+
+    assert result == ""
