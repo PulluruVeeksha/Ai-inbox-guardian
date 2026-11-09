@@ -1,0 +1,19 @@
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment variables and secrets
+.env
+
+# Google OAuth credentials and tokens
+credentials/
+token.json
+
+# Test/cache files
+.pytest_cache/
+
+# VS Code local settings
+.vscode/
