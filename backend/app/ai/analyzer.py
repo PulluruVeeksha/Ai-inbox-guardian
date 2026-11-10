@@ -1,12 +1,15 @@
+
 import json
 import os
 import time
 from enum import Enum
 from typing import Optional
 
+import backend.app.config
+
 from google import genai
 from google.genai import types
-from google.genai.errors import ServerError
+from google.genai.errors import ClientError, ServerError
 from pydantic import BaseModel, Field, ValidationError
 
 
@@ -140,6 +143,18 @@ Do not omit required fields.
                     temperature=0,
                 ),
             )
+
+        except ClientError as exc:
+            if getattr(exc, "code", None) == 429:
+                raise RuntimeError(
+                    "Gemini API quota or rate limit exceeded. "
+                    "Please retry later. Human review is required."
+                ) from exc
+
+            raise RuntimeError(
+                "Gemini API request failed. "
+                "Human review is required."
+            ) from exc
 
         except ServerError as exc:
             if attempt == 0:
