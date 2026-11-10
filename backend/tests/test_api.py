@@ -70,3 +70,50 @@ def test_analyze_email_handles_unavailable_service(mock_process_email):
     assert response.json()["detail"] == (
         "Email analysis is temporarily unavailable."
     )
+from unittest.mock import patch
+
+
+def test_synthetic_email_analysis():
+    response = client.post(
+        "/dev/analyze-synthetic",
+        json={
+            "subject": "Project review required",
+            "body": "Please review the report before the deadline.",
+        },
+    )
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["analysis_mode"] == "mock"
+    assert result["analysis"]["category"] == "needs_action"
+    assert result["analysis"]["suspicious"] is False
+    assert result["action_status"] == "pending_user_approval"
+
+
+def test_synthetic_email_detects_suspicious_content():
+    response = client.post(
+        "/dev/analyze-synthetic",
+        json={
+            "subject": "Urgent: Verify your account",
+            "body": "Your password must be verified immediately.",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["analysis"]["category"] == "suspicious"
+    assert response.json()["analysis"]["suspicious"] is True
+
+
+@patch("backend.app.main.APP_ENV", "production")
+def test_synthetic_endpoint_disabled_outside_development():
+    response = client.post(
+        "/dev/analyze-synthetic",
+        json={
+            "subject": "Test",
+            "body": "Sample email.",
+        },
+    )
+
+    assert response.status_code == 404

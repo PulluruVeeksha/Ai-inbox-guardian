@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from backend.app.auth.google_oauth import create_google_oauth_flow
-from backend.app.config import GOOGLE_TOKEN_FILE
+from backend.app.config import GOOGLE_TOKEN_FILE, APP_ENV
 from backend.app.ai.email_processor import process_email
 
 
@@ -16,6 +16,11 @@ oauth_flows = {}
 
 class EmailAnalysisRequest(BaseModel):
     message_id: str = Field(min_length=1, max_length=256)
+
+
+class SyntheticEmailRequest(BaseModel):
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=5000)
 
 
 @app.get("/health")
@@ -83,3 +88,73 @@ def analyze_email_endpoint(request: EmailAnalysisRequest):
             status_code=503,
             detail="Email analysis is temporarily unavailable.",
         ) from exc
+
+
+@app.post("/dev/analyze-synthetic")
+def analyze_synthetic_email(request: SyntheticEmailRequest):
+    if APP_ENV != "development":
+        raise HTTPException(
+            status_code=404,
+            detail="Not found.",
+        )
+
+    text = f"{request.subject} {request.body}".lower()
+
+    if any(
+        word in text
+        for word in [
+            "password",
+            "verify your account",
+            "urgent payment",
+        ]
+    ):
+        category = "suspicious"
+        suspicious = True
+        reason = "Mock analysis detected potentially suspicious wording."
+
+    elif any(
+        word in text
+        for word in [
+            "please review",
+            "action required",
+            "deadline",
+        ]
+    ):
+        category = "needs_action"
+        suspicious = False
+        reason = "Mock analysis detected a possible action request."
+
+    elif any(
+        word in text
+        for word in [
+            "discount",
+            "sale",
+            "offer",
+            "promotion",
+        ]
+    ):
+        category = "promotional"
+        suspicious = False
+        reason = "Mock analysis detected promotional wording."
+
+    else:
+        category = "fyi"
+        suspicious = False
+        reason = "Mock analysis classified this as routine information."
+
+    return {
+        "analysis_mode": "mock",
+        "email": {
+            "subject": request.subject,
+        },
+        "analysis": {
+            "category": category,
+            "importance_score": 50,
+            "confidence": 0.50,
+            "reason": reason,
+            "deadline": None,
+            "requires_reply": category == "needs_action",
+            "suspicious": suspicious,
+        },
+        "action_status": "pending_user_approval",
+    }
