@@ -1,6 +1,7 @@
 
-from fastapi.testclient import TestClient
 from unittest.mock import patch
+
+from fastapi.testclient import TestClient
 
 from backend.app.main import app
 
@@ -70,7 +71,6 @@ def test_analyze_email_handles_unavailable_service(mock_process_email):
     assert response.json()["detail"] == (
         "Email analysis is temporarily unavailable."
     )
-from unittest.mock import patch
 
 
 def test_synthetic_email_analysis():
@@ -117,3 +117,51 @@ def test_synthetic_endpoint_disabled_outside_development():
     )
 
     assert response.status_code == 404
+
+
+def test_synthetic_email_rejects_empty_subject():
+    response = client.post(
+        "/dev/analyze-synthetic",
+        json={
+            "subject": "",
+            "body": "This is a sample email.",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_synthetic_email_rejects_empty_body():
+    response = client.post(
+        "/dev/analyze-synthetic",
+        json={
+            "subject": "Sample email",
+            "body": "",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_synthetic_email_rejects_oversized_subject():
+    response = client.post(
+        "/dev/analyze-synthetic",
+        json={
+            "subject": "A" * 201,
+            "body": "Sample email.",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_synthetic_email_rejects_oversized_body():
+    response = client.post(
+        "/dev/analyze-synthetic",
+        json={
+            "subject": "Sample email",
+            "body": "A" * 5001,
+        },
+    )
+
+    assert response.status_code == 422
