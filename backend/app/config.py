@@ -1,3 +1,5 @@
+
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -16,4 +18,12 @@ GOOGLE_REDIRECT_URI = "http://127.0.0.1:8000/auth/callback"
 GOOGLE_GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 
 GOOGLE_TOKEN_FILE = PROJECT_ROOT / "token.json"
-APP_ENV = "development"
+
+APP_ENV = os.getenv("APP_ENV", "development")
+
+# PostgreSQL configuration
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "ai_inbox_guardian")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
