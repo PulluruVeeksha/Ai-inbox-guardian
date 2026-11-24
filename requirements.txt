@@ -10,3 +10,4 @@ google-genai
 sqlalchemy
 alembic
 psycopg[binary]
+cryptography

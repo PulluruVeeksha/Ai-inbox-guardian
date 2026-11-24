@@ -4,8 +4,9 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from backend.app.auth.google_oauth import create_google_oauth_flow
-from backend.app.config import GOOGLE_TOKEN_FILE, APP_ENV
+from backend.app.auth.token_storage import save_oauth_credentials
 from backend.app.ai.email_processor import process_email
+from backend.app.config import APP_ENV
 
 
 app = FastAPI(title="AI Inbox Guardian")
@@ -53,17 +54,27 @@ def auth_callback(code: str, state: str):
             detail="Invalid or expired OAuth state.",
         )
 
-    flow.fetch_token(code=code)
+    try:
+        flow.fetch_token(code=code)
 
-    GOOGLE_TOKEN_FILE.write_text(
-        flow.credentials.to_json(),
-        encoding="utf-8",
-    )
+        account_email = save_oauth_credentials(
+            flow.credentials
+        )
 
-    return {
-        "status": "oauth authorization successful",
-        "message": "Google authorization successful and credentials saved.",
-    }
+        return {
+            "status": "oauth authorization successful",
+            "message": "Encrypted Gmail refresh token saved in PostgreSQL.",
+            "account": account_email,
+        }
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Google authorization could not be saved. "
+                "Please check the server logs."
+            ),
+        ) from exc
 
 
 @app.post("/emails/analyze")
