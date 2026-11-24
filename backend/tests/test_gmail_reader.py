@@ -106,3 +106,67 @@ def test_extract_email_body_when_empty():
     result = extract_email_body(message)
 
     assert result == ""
+
+import base64
+
+
+def encode_email_content(content: str) -> str:
+    return base64.urlsafe_b64encode(
+        content.encode("utf-8")
+    ).decode("utf-8").rstrip("=")
+
+
+def test_extract_email_body_from_html_only():
+    from backend.app.gmail.reader import extract_email_body
+
+    html_content = """
+    <html>
+        <body>
+            <h1>Hello</h1>
+            <p>This is an HTML-only email.</p>
+            <script>alert('ignore this')</script>
+        </body>
+    </html>
+    """
+
+    message = {
+        "payload": {
+            "mimeType": "text/html",
+            "body": {
+                "data": encode_email_content(html_content)
+            },
+        }
+    }
+
+    result = extract_email_body(message)
+
+    assert "Hello" in result
+    assert "This is an HTML-only email." in result
+    assert "alert" not in result
+
+
+def test_extract_message_metadata_with_labels_and_unsubscribe():
+    from backend.app.gmail.reader import extract_message_metadata
+
+    message = {
+        "id": "message-123",
+        "threadId": "thread-456",
+        "labelIds": ["INBOX", "UNREAD"],
+        "payload": {
+            "headers": [
+                {"name": "From", "value": "sender@example.com"},
+                {"name": "Subject", "value": "Test email"},
+                {
+                    "name": "List-Unsubscribe",
+                    "value": "<mailto:unsubscribe@example.com>",
+                },
+            ]
+        },
+    }
+
+    result = extract_message_metadata(message)
+
+    assert result["labels"] == ["INBOX", "UNREAD"]
+    assert result["list_unsubscribe"] == (
+        "<mailto:unsubscribe@example.com>"
+    )
